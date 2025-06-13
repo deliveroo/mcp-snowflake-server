@@ -82,7 +82,10 @@ def main():
         # Append the Netskope root CA certificate to the existing CA bundle
         with open(cafile, 'a') as outfile:
             with open(cert_file, 'r') as infile:
-                outfile.write(infile.read())
+                cert_content = infile.read()
+                if not cert_content.endswith('\n'):
+                    cert_content += '\n'
+                outfile.write(cert_content)
     
     default_connection_args = snowflake.connector.connection.DEFAULT_CONFIGURATION
 
