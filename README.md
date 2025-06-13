@@ -82,50 +82,11 @@ The server exposes the following tools:
   **Returns:** Confirmation of insight addition  
   **Effect:** Triggers update of `memo://insights` resource
 
----
 
-## Usage with Claude Desktop
-
-### Installing via Smithery
-
-To install Snowflake Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/mcp_snowflake_server):
-
-```bash
-npx -y @smithery/cli install mcp_snowflake_server --client claude
-```
-
----
-
-### Installing via UVX
-
-```json
-"mcpServers": {
-  "snowflake_pip": {
-    "command": "uvx",
-    "args": [
-      "--python=3.12",  // Optional: specify Python version <=3.12
-      "mcp_snowflake_server",
-      "--account", "your_account",
-      "--warehouse", "your_warehouse",
-      "--user", "your_user",
-      "--password", "your_password",
-      "--role", "your_role",
-      "--database", "your_database",
-      "--schema", "your_schema"
-      // Optionally: "--allow_write"
-      // Optionally: "--log_dir", "/absolute/path/to/logs"
-      // Optionally: "--log_level", "DEBUG"/"INFO"/"WARNING"/"ERROR"/"CRITICAL"
-      // Optionally: "--exclude_tools", "{tool_name}", ["{other_tool_name}"]
-    ]
-  }
-}
-```
-
----
 
 ### Installing Locally
 
-1. Install [Claude AI Desktop App](https://claude.ai/download)
+1. Download the PEM certificate file following the [Netskope / SSL issues with python hitting APIs locally](https://deliveroo.atlassian.net/wiki/spaces/BI/pages/5260050516/Netskope+SSL+issues+with+python+hitting+APIs+locally) guide. This certificate will be referenced in the `NETSKOPE_CERTIFICATE_FILE` environment variable.
 
 2. Install `uv`:
 
@@ -133,57 +94,59 @@ npx -y @smithery/cli install mcp_snowflake_server --client claude
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-3. Create a `.env` file with your Snowflake credentials:
+3. Install Python 3.12 (if not already installed):
 
 ```bash
-SNOWFLAKE_USER="xxx@your_email.com"
-SNOWFLAKE_ACCOUNT="xxx"
-SNOWFLAKE_ROLE="xxx"
-SNOWFLAKE_DATABASE="xxx"
-SNOWFLAKE_SCHEMA="xxx"
-SNOWFLAKE_WAREHOUSE="xxx"
-SNOWFLAKE_PASSWORD="xxx"
-# Alternatively, use external browser authentication:
-# SNOWFLAKE_AUTHENTICATOR="externalbrowser"
+uv venv --python=3.12
 ```
 
-4. [Optional] Modify `runtime_config.json` to set exclusion patterns for databases, schemas, or tables.
+4. Set up Cursor access. If you need Cursor access, request it using the `/request-access` command in Slack.
 
-5. Test locally:
+5. Ensure your Snowflake access is active and Duo authentication is disabled. Use the `/snowflake-access` command in Slack for activation and to disable Duo.
 
-```bash
-uv --directory /absolute/path/to/mcp_snowflake_server run mcp_snowflake_server
-```
+6. Once you have both Cursor and Snowflake access, open the project in Cursor and create a directory named `.cursor` in the root of the project.
 
-6. Add the server to your `claude_desktop_config.json`:
+7. Create a file named `mcp.json` inside the `.cursor` directory and paste the following JSON configuration, updating the values as indicated:
 
 ```json
-"mcpServers": {
-  "snowflake_local": {
-    "command": "/absolute/path/to/uv",
-    "args": [
-      "--python=3.12",  // Optional
-      "--directory", "/absolute/path/to/mcp_snowflake_server",
-      "run", "mcp_snowflake_server"
-      // Optionally: "--allow_write"
-      // Optionally: "--log_dir", "/absolute/path/to/logs"
-      // Optionally: "--log_level", "DEBUG"/"INFO"/"WARNING"/"ERROR"/"CRITICAL"
-      // Optionally: "--exclude_tools", "{tool_name}", ["{other_tool_name}"]
-    ]
-  }
+{
+    "mcpServers": {
+        "snowflake_local": {
+            "command": "/Users/macusername/.local/bin/uv", // Replace with your actual uv path
+            "args": [
+                "--directory",
+                "/Users/macusername/projects/mcp-snowflake-server",  // Replace with your actual project path
+                "run",
+                "mcp_snowflake_server",
+                "--account",
+                "XXXXXXX-DELIVEROO",  // Replace with your Snowflake account (format: XXXXX-DELIVEROO)
+                "--warehouse",
+                "bi_development", // Replace with your default warehouse
+                "--user",
+                "<snowflake username>",  // Replace with your Snowflake username (email address)
+                "--role",
+                "SOFTWARE_ENGINEERING",
+                "--database",
+                "production",
+                "--schema",
+                "core",
+                "--authenticator",
+                "externalbrowser"
+            ],
+            "env": {
+                "NETSKOPE_CERTIFICATE_FILE": "/Users/<macusername>/.config/certs/nscacert.pem" // Replace with the path to your certificate file
+            }
+        }
+    }
 }
 ```
 
----
+8. Test the setup by typing "list databases" in the Cursor chat. This should display all available databases. Note that a browser window will open for authentication.
 
-## Notes
+#### Troubleshooting
 
-- By default, **write operations are disabled**. Enable them explicitly with `--allow-write`.
-- The server supports filtering out specific databases, schemas, or tables via exclusion patterns.
-- The server exposes additional per-table context resources if prefetching is enabled.
-- The `append_insight` tool updates the `memo://insights` resource dynamically.
-
----
+1. If the setup doesn't work, try restarting Cursor.
+2. If you encounter a "no user found" error, you may need to activate your Snowflake account or create a new account.
 
 ## License
 
