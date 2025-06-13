@@ -11,6 +11,82 @@ A Model Context Protocol (MCP) server implementation that provides database inte
 
 ---
 
+
+### Installing Locally
+
+1. Install `uv`:
+
+`uv` is a modern package manager for Python that will handle your python environment and dependencies.
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+2. Install Python 3.12 (if not already installed):
+
+```bash
+uv venv --python=3.12
+```
+
+3. Set up Cursor/Windsurf access. If you need access, request it using the `/request-access` command in Slack.
+
+4. Ensure your Snowflake access is active. Use the `/snowflake-access` command in Slack for activation.
+
+Note - if you had a Snowflake account but get a SAML error when logging in, run `/snowflake-access re_enable` on Slack to automatically re-enable your account
+
+5. Open the project in your IDE and configure the MCP server
+
+**Cursor**
+
+Open the project in Cursor and create a directory named `.cursor` in the root of the project.
+
+Create a file named `mcp.json` inside the `.cursor` directory and paste the following JSON configuration, updating the values as below.
+
+**Windsurf**
+
+Create a file named `mcp_config.json` in the root of the project and paste the following JSON configuration, updating the values as below.
+
+```json
+{
+    "mcpServers": {
+        "snowflake_local": {
+            "command": "/Users/<macusername>/.local/bin/uv", // Replace with your actual uv path. Run `which uv` in the terminal if you don't know this
+            "args": [
+                "--directory",
+                "/Users/macusername/projects/mcp-snowflake-server",  // Replace with your actual repo path
+                "run",
+                "mcp_snowflake_server",
+                "--account",
+                "YW26239-DELIVEROO",
+                "--warehouse",
+                "bi_development",
+                "--user",
+                "first.last@deliveroo.com",  // Replace with your email address
+                "--database",
+                "production",
+                "--schema",
+                "core",
+                "--authenticator",
+                "externalbrowser"
+            ]
+        }
+    }
+}
+```
+
+6. Test the setup by typing "list databases" in the Cursor chat. This should display all available databases. Note that a browser window will open for authentication.
+
+### Troubleshooting
+
+1. If the setup doesn't work, try restarting Cursor.
+2. If you encounter a "no user found" error, you may need to activate your Snowflake account or create a new account.
+
+### Netskope SSL issues
+
+The Netskope certificate file is included in this repository at `certs/nscacert.pem` and is automatically loaded by the server. If you need to update it, download a new pem file from this guide [Netskope / SSL issues with python hitting APIs locally](https://deliveroo.atlassian.net/wiki/spaces/PS/pages/4760109122/A+SWG+Guide+for+Tech+and+Engineering#The-certificate-is-located-at:) and update the file.
+
+---
+
 ## Components
 
 ### Resources
@@ -82,68 +158,7 @@ The server exposes the following tools:
   **Returns:** Confirmation of insight addition  
   **Effect:** Triggers update of `memo://insights` resource
 
-
-
-### Installing Locally
-
-1. The Netskope certificate file is already included in the repository at `certs/nscacert.pem`. If you need to update it, follow the [Netskope / SSL issues with python hitting APIs locally](https://deliveroo.atlassian.net/wiki/spaces/BI/pages/5260050516/Netskope+SSL+issues+with+python+hitting+APIs+locally) guide.
-
-2. Install `uv`:
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-3. Install Python 3.12 (if not already installed):
-
-```bash
-uv venv --python=3.12
-```
-
-4. Set up Cursor access. If you need Cursor access, request it using the `/request-access` command in Slack.
-
-5. Ensure your Snowflake access is active and Duo authentication is disabled. Use the `/snowflake-access` command in Slack for activation and to disable Duo.
-
-6. Once you have both Cursor and Snowflake access, open the project in Cursor and create a directory named `.cursor` in the root of the project.
-
-7. Create a file named `mcp.json` inside the `.cursor` directory and paste the following JSON configuration, updating the values as indicated:
-
-```json
-{
-    "mcpServers": {
-        "snowflake_local": {
-            "command": "/Users/macusername/.local/bin/uv", // Replace with your actual uv path
-            "args": [
-                "--directory",
-                "/Users/macusername/projects/mcp-snowflake-server",  // Replace with your actual project path
-                "run",
-                "mcp_snowflake_server",
-                "--account",
-                "XXXXXXX-DELIVEROO",  // Replace with your Snowflake account (format: XXXXX-DELIVEROO)
-                "--warehouse",
-                "bi_development", // Replace with your default warehouse
-                "--user",
-                "<snowflake username>",  // Replace with your Snowflake username (email address)
-                "--role",
-                "SOFTWARE_ENGINEERING",
-                "--database",
-                "production",
-                "--schema",
-                "core",
-                "--authenticator",
-                "externalbrowser"
-            ]
-        }
-    }
-}
-```
-
-8. Test the setup by typing "list databases" in the Cursor chat. This should display all available databases. Note that a browser window will open for authentication.
-
-#### Troubleshooting
-
-1. If the setup doesn't work, try restarting Cursor.
-2. If you encounter a "no user found" error, you may need to activate your Snowflake account or create a new account.
+---
 
 ## License
 
