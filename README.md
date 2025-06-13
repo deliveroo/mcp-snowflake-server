@@ -86,7 +86,7 @@ The server exposes the following tools:
 
 ### Installing Locally
 
-1. Download the PEM certificate file following the [Netskope / SSL issues with python hitting APIs locally](https://deliveroo.atlassian.net/wiki/spaces/BI/pages/5260050516/Netskope+SSL+issues+with+python+hitting+APIs+locally) guide. This certificate will be referenced in the `NETSKOPE_CERTIFICATE_FILE` environment variable.
+1. The Netskope certificate file is already included in the repository at `certs/nscacert.pem`. If you need to update it, follow the [Netskope / SSL issues with python hitting APIs locally](https://deliveroo.atlassian.net/wiki/spaces/BI/pages/5260050516/Netskope+SSL+issues+with+python+hitting+APIs+locally) guide.
 
 2. Install `uv`:
 
@@ -132,10 +132,7 @@ uv venv --python=3.12
                 "core",
                 "--authenticator",
                 "externalbrowser"
-            ],
-            "env": {
-                "NETSKOPE_CERTIFICATE_FILE": "/Users/<macusername>/.config/certs/nscacert.pem" // Replace with the path to your certificate file
-            }
+            ]
         }
     }
 }
