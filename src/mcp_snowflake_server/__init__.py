@@ -77,9 +77,12 @@ def main():
 
     # Path to the existing CA bundle used by Python
     cafile = certifi.where()
-    cert_file = os.getenv("NETSKOPE_CERTIFICATE_FILE")
+    
+    # Use certificate file from the repo
+    cert_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "certs", "nscacert.pem")
+    
     custom_cafile = cafile  # Default to the existing CA bundle
-    if cert_file:
+    if cert_file and os.path.exists(cert_file):
         # Create a custom CA bundle that combines the default bundle with the additional certificate
         import tempfile
         custom_cafile = tempfile.NamedTemporaryFile(delete=False).name
