@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import os
 
+import certifi
 import dotenv
 import snowflake.connector
 
@@ -74,6 +75,23 @@ def main():
 
     dotenv.load_dotenv()
 
+    # Path to the existing CA bundle used by Python
+    cafile = certifi.where()
+    cert_file = os.getenv("NETSKOPE_CERTIFICATE_FILE")
+    custom_cafile = cafile  # Default to the existing CA bundle
+    if cert_file:
+        # Create a custom CA bundle that combines the default bundle with the additional certificate
+        import tempfile
+        custom_cafile = tempfile.NamedTemporaryFile(delete=False).name
+        with open(custom_cafile, 'w') as outfile:
+            with open(cafile, 'r') as infile:
+                outfile.write(infile.read())
+            with open(cert_file, 'r') as infile:
+                cert_content = infile.read()
+                if not cert_content.endswith('\n'):
+                    cert_content += '\n'
+                outfile.write(cert_content)
+    
     default_connection_args = snowflake.connector.connection.DEFAULT_CONFIGURATION
 
     connection_args_from_env = {
