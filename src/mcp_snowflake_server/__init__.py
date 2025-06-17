@@ -14,10 +14,18 @@ def parse_args():
 
     # Add arguments
     parser.add_argument(
-        "--allow_write", required=False, default=False, action="store_true", help="Allow write operations on the database"
+        "--allow_write",
+        required=False,
+        default=False,
+        action="store_true",
+        help="Allow write operations on the database",
     )
-    parser.add_argument("--log_dir", required=False, default=None, help="Directory to log to")
-    parser.add_argument("--log_level", required=False, default="INFO", help="Logging level")
+    parser.add_argument(
+        "--log_dir", required=False, default=None, help="Directory to log to"
+    )
+    parser.add_argument(
+        "--log_level", required=False, default="INFO", help="Logging level"
+    )
     parser.add_argument(
         "--prefetch",
         action="store_true",
@@ -77,24 +85,29 @@ def main():
 
     # Path to the existing CA bundle used by Python
     cafile = certifi.where()
-    
+
     # Use certificate file from the repo
-    cert_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "certs", "nscacert.pem")
-    
+    cert_file = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "certs", "nscacert.pem"
+    )
+
     custom_cafile = cafile  # Default to the existing CA bundle
     if cert_file and os.path.exists(cert_file):
         # Create a custom CA bundle that combines the default bundle with the additional certificate
         import tempfile
+
         custom_cafile = tempfile.NamedTemporaryFile(delete=False).name
-        with open(custom_cafile, 'w') as outfile:
-            with open(cafile, 'r') as infile:
+        with open(custom_cafile, "w") as outfile:
+            with open(cafile, "r") as infile:
                 outfile.write(infile.read())
-            with open(cert_file, 'r') as infile:
+            with open(cert_file, "r") as infile:
                 cert_content = infile.read()
-                if not cert_content.endswith('\n'):
-                    cert_content += '\n'
+                if not cert_content.endswith("\n"):
+                    cert_content += "\n"
                 outfile.write(cert_content)
-    
+
+    # del os.environ["REQUESTS_CA_BUNDLE"]
+    os.environ["REQUESTS_CA_BUNDLE"] = "certs/nscacert.pem"
     default_connection_args = snowflake.connector.connection.DEFAULT_CONFIGURATION
 
     connection_args_from_env = {
