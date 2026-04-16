@@ -32,7 +32,7 @@ class SnowflakeDB:
             if "warehouse" in self.connection_config:
                 self.session.sql(
                     f"USE WAREHOUSE {self.connection_config['warehouse'].upper()}"
-                )
+                ).collect()
         except Exception as e:
             raise ValueError(f"Failed to connect to Snowflake database: {e}")
 
@@ -45,10 +45,19 @@ class SnowflakeDB:
 
     async def _ensure_session(self):
         """Ensure we have a valid session, waiting for init or creating one as needed."""
-        if self.init_task and not self.init_task.done():
-            await self.init_task
-        elif not self.session:
+        if self.init_task:
+            if not self.init_task.done():
+                await self.init_task
+            else:
+                self.init_task.result()
+        if not self.session:
             await self._init_database()
+
+    def _run_query(self, query: str) -> tuple[list[dict[str, Any]], str]:
+        result = self.session.sql(query).to_pandas()
+        result_rows = result.to_dict(orient="records")
+        data_id = str(uuid.uuid4())
+        return result_rows, data_id
 
     async def execute_query(self, query: str) -> tuple[list[dict[str, Any]], str]:
         """Execute a SQL query and return results as a list of dictionaries"""
@@ -56,20 +65,13 @@ class SnowflakeDB:
 
         logger.debug(f"Executing query: {query}")
         try:
-            result = self.session.sql(query).to_pandas()
-            result_rows = result.to_dict(orient="records")
-            data_id = str(uuid.uuid4())
-
-            return result_rows, data_id
+            return self._run_query(query)
 
         except SnowparkSessionException:
             logger.warning("Session expired, re-authenticating...")
             self.session = None
             await self._init_database()
-            result = self.session.sql(query).to_pandas()
-            result_rows = result.to_dict(orient="records")
-            data_id = str(uuid.uuid4())
-            return result_rows, data_id
+            return self._run_query(query)
 
         except Exception as e:
             logger.error(f'Database error executing "{query}": {e}')
