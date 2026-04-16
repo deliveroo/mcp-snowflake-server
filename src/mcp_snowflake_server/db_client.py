@@ -4,6 +4,7 @@ import uuid
 from typing import Any
 
 from snowflake.snowpark import Session
+from snowflake.snowpark.exceptions import SnowparkSessionException
 
 # Configure logging
 logging.basicConfig(
@@ -47,7 +48,7 @@ class SnowflakeDB:
         # If init_task exists and isn't done, wait for it to complete
         if self.init_task and not self.init_task.done():
             await self.init_task
-        # If session doesn't exist or has expired, initialize it and wait
+        # If session was never created, initialize it
         elif not self.session:
             await self._init_database()
 
@@ -57,6 +58,17 @@ class SnowflakeDB:
             result_rows = result.to_dict(orient="records")
             data_id = str(uuid.uuid4())
 
+            return result_rows, data_id
+
+        except SnowparkSessionException:
+            # Session has expired (e.g. token timeout after inactivity).
+            # Re-authenticate and retry rather than surfacing the error.
+            logger.warning("Session expired, re-authenticating...")
+            self.session = None
+            await self._init_database()
+            result = self.session.sql(query).to_pandas()
+            result_rows = result.to_dict(orient="records")
+            data_id = str(uuid.uuid4())
             return result_rows, data_id
 
         except Exception as e:
