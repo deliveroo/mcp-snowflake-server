@@ -4,7 +4,6 @@ import uuid
 from typing import Any
 
 from snowflake.snowpark import Session
-from snowflake.snowpark.exceptions import SnowparkSessionException
 
 # Configure logging
 logging.basicConfig(
@@ -29,12 +28,10 @@ class SnowflakeDB:
             self.session = Session.builder.configs(self.connection_config).create()
 
             # Set initial warehouse if provided, but don't set database or schema
-            # .collect() is required because Session.sql() returns a lazy
-            # DataFrame that won't execute until an action is triggered
             if "warehouse" in self.connection_config:
                 self.session.sql(
                     f"USE WAREHOUSE {self.connection_config['warehouse'].upper()}"
-                ).collect()
+                )
         except Exception as e:
             raise ValueError(f"Failed to connect to Snowflake database: {e}")
 
@@ -45,39 +42,22 @@ class SnowflakeDB:
         self.init_task = loop.create_task(self._init_database())
         return self.init_task
 
-    async def _ensure_session(self):
-        """Ensure we have a valid session, waiting for init or creating one as needed."""
-        if self.init_task:
-            if not self.init_task.done():
-                await self.init_task
-            else:
-                # Re-raise any exception from the background init so failures
-                # aren't silently swallowed
-                self.init_task.result()
-        if not self.session:
-            await self._init_database()
-
-    def _run_query(self, query: str) -> tuple[list[dict[str, Any]], str]:
-        result = self.session.sql(query).to_pandas()
-        result_rows = result.to_dict(orient="records")
-        data_id = str(uuid.uuid4())
-        return result_rows, data_id
-
     async def execute_query(self, query: str) -> tuple[list[dict[str, Any]], str]:
         """Execute a SQL query and return results as a list of dictionaries"""
-        await self._ensure_session()
+        # If init_task exists and isn't done, wait for it to complete
+        if self.init_task and not self.init_task.done():
+            await self.init_task
+        # If session doesn't exist or has expired, initialize it and wait
+        elif not self.session:
+            await self._init_database()
 
         logger.debug(f"Executing query: {query}")
         try:
-            return self._run_query(query)
+            result = self.session.sql(query).to_pandas()
+            result_rows = result.to_dict(orient="records")
+            data_id = str(uuid.uuid4())
 
-        except SnowparkSessionException:
-            # Session has expired (e.g. token timeout after inactivity).
-            # Re-authenticate and retry rather than surfacing the error.
-            logger.warning("Session expired, re-authenticating...")
-            self.session = None
-            await self._init_database()
-            return self._run_query(query)
+            return result_rows, data_id
 
         except Exception as e:
             logger.error(f'Database error executing "{query}": {e}')
