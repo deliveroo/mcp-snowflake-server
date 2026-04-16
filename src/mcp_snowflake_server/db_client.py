@@ -1,10 +1,10 @@
 import asyncio
 import logging
-import time
 import uuid
 from typing import Any
 
 from snowflake.snowpark import Session
+from snowflake.snowpark.exceptions import SnowparkSessionException
 
 # Configure logging
 logging.basicConfig(
@@ -16,13 +16,10 @@ logger = logging.getLogger("mcp_snowflake_server")
 
 
 class SnowflakeDB:
-    AUTH_EXPIRATION_TIME = 1800
-
     def __init__(self, connection_config: dict):
         self.connection_config = connection_config
         self.session = None
         self.insights: list[str] = []
-        self.auth_time = 0
         self.init_task = None  # To store the task reference
 
     async def _init_database(self):
@@ -33,11 +30,11 @@ class SnowflakeDB:
 
             # Set initial warehouse if provided, but don't set database or schema
             if "warehouse" in self.connection_config:
-                self.session.sql(f"USE WAREHOUSE {self.connection_config['warehouse'].upper()}")
-
-            self.auth_time = time.time()
+                self.session.sql(
+                    f"USE WAREHOUSE {self.connection_config['warehouse'].upper()}"
+                ).collect()
         except Exception as e:
-            raise ValueError(f"Failed to connect to Snowflake database: {e}")
+            raise ValueError(f"Failed to connect to Snowflake database: {e}") from e
 
     def start_init_connection(self):
         """Start database initialization in the background"""
@@ -51,8 +48,8 @@ class SnowflakeDB:
         # If init_task exists and isn't done, wait for it to complete
         if self.init_task and not self.init_task.done():
             await self.init_task
-        # If session doesn't exist or has expired, initialize it and wait
-        elif not self.session or time.time() - self.auth_time > self.AUTH_EXPIRATION_TIME:
+        # If session was never created, initialize it
+        elif not self.session:
             await self._init_database()
 
         logger.debug(f"Executing query: {query}")
@@ -61,6 +58,21 @@ class SnowflakeDB:
             result_rows = result.to_dict(orient="records")
             data_id = str(uuid.uuid4())
 
+            return result_rows, data_id
+
+        except SnowparkSessionException:
+            # Session has expired (e.g. token timeout after inactivity).
+            # Re-authenticate and retry rather than surfacing the error.
+            logger.warning("Session expired, re-authenticating...")
+            try:
+                self.session.close()
+            except Exception:
+                pass
+            self.session = None
+            await self._init_database()
+            result = self.session.sql(query).to_pandas()
+            result_rows = result.to_dict(orient="records")
+            data_id = str(uuid.uuid4())
             return result_rows, data_id
 
         except Exception as e:
