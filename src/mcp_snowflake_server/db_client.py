@@ -3,6 +3,7 @@ import logging
 import uuid
 from typing import Any
 
+import snowflake.connector
 from snowflake.snowpark import Session
 from snowflake.snowpark.exceptions import SnowparkSessionException
 
@@ -25,10 +26,11 @@ class SnowflakeDB:
     async def _init_database(self):
         """Initialize connection to the Snowflake database"""
         try:
-            # Create session without setting specific database and schema
-            self.session = Session.builder.configs(self.connection_config).create()
+            conn = snowflake.connector.connect(**self.connection_config)
+            self.session = Session.builder.configs(
+                {"connection": conn}
+            ).create()
 
-            # Set initial warehouse if provided, but don't set database or schema
             if "warehouse" in self.connection_config:
                 self.session.sql(
                     f"USE WAREHOUSE {self.connection_config['warehouse'].upper()}"

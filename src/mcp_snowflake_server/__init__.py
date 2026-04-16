@@ -120,9 +120,6 @@ def main():
 
     if connection_args.get("authenticator") == "externalbrowser":
         connection_args.setdefault("client_store_temporary_credential", True)
-        os.environ.setdefault(
-            "SF_CLIENT_STORE_TEMPORARY_CREDENTIAL", "true"
-        )
 
     assert (
         "database" in connection_args
