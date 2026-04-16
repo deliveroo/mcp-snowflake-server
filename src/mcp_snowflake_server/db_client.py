@@ -32,9 +32,9 @@ class SnowflakeDB:
             if "warehouse" in self.connection_config:
                 self.session.sql(
                     f"USE WAREHOUSE {self.connection_config['warehouse'].upper()}"
-                )
+                ).collect()
         except Exception as e:
-            raise ValueError(f"Failed to connect to Snowflake database: {e}")
+            raise ValueError(f"Failed to connect to Snowflake database: {e}") from e
 
     def start_init_connection(self):
         """Start database initialization in the background"""
@@ -64,6 +64,10 @@ class SnowflakeDB:
             # Session has expired (e.g. token timeout after inactivity).
             # Re-authenticate and retry rather than surfacing the error.
             logger.warning("Session expired, re-authenticating...")
+            try:
+                self.session.close()
+            except Exception:
+                pass
             self.session = None
             await self._init_database()
             result = self.session.sql(query).to_pandas()
